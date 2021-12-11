@@ -228,3 +228,6 @@ priorityClassName: ""
 # Tolerations for pod assignment
 # https://kubernetes.io/docs/concepts/configuration/taint-and-toleration/
 tolerations: []
+
+service:
+  type: ClusterIP

@@ -15,7 +15,7 @@ spec:
   source:
     repoURL: https://github.com/chaunceyt/teleport
     targetRevision: HEAD
-    path: ./root-cluster
+    path: ./trusted-cluster-01
    
     # directory
     directory:
@@ -23,7 +23,7 @@ spec:
   # Destination cluster and namespace to deploy the application
   destination:
     server: https://kubernetes.default.svc
-    namespace: root-cluster
+    namespace: trusted-cluster-01
 
   # Sync policy
   syncPolicy:

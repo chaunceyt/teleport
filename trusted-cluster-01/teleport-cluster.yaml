@@ -1,0 +1,176 @@
+---
+# Source: teleport-cluster/templates/serviceaccount.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: teleport
+---
+# Source: teleport-cluster/templates/config.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: teleport
+data:
+  teleport.yaml: |
+    teleport:
+      connection_limits:
+        max_connections: 1000
+        max_users: 250
+      cache:
+        enabled: true
+        type: in-memory
+        ttl: 20h
+      log:
+        severity: DEBUG
+        output: stderr
+        format:
+          output: text
+          extra_fields: [level, timestamp, component, caller]
+      storage:
+        type: etcd
+        peers: ["http://trusted-cluster-01-etcd.trusted-cluster-01.svc.cluster.local:2379"]
+        prefix: /teleport.secrets/
+        tls_key_file: /var/certs/etcd/trusted-cluster-01-etcd.trusted-cluster-01.svc.cluster.local-key.pem 
+        tls_cert_file: /var/certs/etcd/trusted-cluster-01-etcd.trusted-cluster-01.svc.cluster.local.pem
+        tls_ca_file: /var/certs/etcd/trusted-cluster-01-etcd.trusted-cluster-01.svc.cluster.local.ca.pem
+        #insecure: true
+    auth_service:
+      enabled: true
+      tokens:
+       - trusted_cluster:Zs15b013ba25c99d3454336002cf9b20fb
+      cluster_name: trusted-cluster-01.trusted-cluster-01.svc.cluster.local
+      authentication:
+        type: local
+        second_factor: off     
+    kubernetes_service:
+      enabled: false
+      listen_addr: 0.0.0.0:3027
+      kube_cluster_name: trusted-cluster-01.trusted-cluster-01.svc.cluster.local
+    db_service:
+      enabled: "no"
+      databases:
+      - name: "example"
+        description: "Example MySQL"
+        protocol: "mysql"
+        uri: "teleport-db-mysql.db.svc.cluster.local:3306"
+    proxy_service:
+      public_addr: 'trusted-cluster-01.trusted-cluster-01.svc.cluster.local:443'
+      kube_listen_addr: 0.0.0.0:3026
+      mysql_listen_addr: 0.0.0.0:3036
+      enabled: true
+    ssh_service:
+      enabled: false
+---
+# Source: teleport-cluster/templates/pvc.yaml
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: teleport
+  labels:
+    app: teleport
+spec:
+  accessModes:
+  - ReadWriteOnce
+  resources:
+    requests:
+      storage: 10Gi
+---
+# Source: teleport-cluster/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: teleport
+  labels:
+    app: teleport
+spec:
+  type: NodePort
+  ports:
+  - name: https
+    port: 443
+    targetPort: 3080
+    protocol: TCP
+  - name: sshproxy
+    port: 3023
+    targetPort: 3023
+    protocol: TCP
+  - name: k8s
+    port: 3026
+    targetPort: 3026
+    protocol: TCP
+  - name: sshtun
+    port: 3024
+    targetPort: 3024
+    protocol: TCP
+  - name: mysql
+    port: 3036
+    targetPort: 3036
+    protocol: TCP
+  selector:
+    app: teleport
+---
+# Source: teleport-cluster/templates/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: teleport
+  namespace: trusted-cluster-01
+  labels:
+    app: teleport
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: teleport
+  template:
+    metadata:
+      annotations:
+        # ConfigMap checksum, to recreate the pod on config changes.
+        checksum/config: f7d53a2feeea8628d1e91df110345f11f699545bc1ade5da6d3352c81d797910
+      labels:
+        app: teleport
+    spec:
+      containers:
+      - name: "teleport"
+        image: "quay.io/gravitational/teleport:7.3.3"
+        imagePullPolicy: IfNotPresent
+        args:
+        - "--diag-addr=0.0.0.0:3000"
+        - "--insecure"
+        ports:
+        - name: diag
+          containerPort: 3000
+          protocol: TCP
+        livenessProbe:
+          httpGet:
+            path: /healthz
+            port: diag
+          initialDelaySeconds: 5 # wait 5s for agent to start
+          periodSeconds: 5 # poll health every 5s
+          failureThreshold: 6 # consider agent unhealthy after 30s (6 * 5s)
+        readinessProbe:
+          httpGet:
+            path: /readyz
+            port: diag
+          initialDelaySeconds: 5 # wait 5s for agent to register
+          periodSeconds: 5 # poll health every 5s
+          failureThreshold: 12 # consider agent unhealthy after 60s (12 * 5s)
+        volumeMounts:
+        - name: etcd-certs
+          mountPath: /var/certs/etcd
+          readOnly: true
+        - mountPath: /etc/teleport
+          name: "config"
+          readOnly: true
+        - mountPath: /var/lib/teleport
+          name: "data"
+      volumes:
+      - name: etcd-certs
+        configMap:
+          name: etcd-certs
+      - name: "config"
+        configMap:
+          name: teleport
+      - name: "data"
+        persistentVolumeClaim:
+          claimName: teleport
+      serviceAccountName: teleport

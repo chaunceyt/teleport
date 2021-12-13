@@ -38,16 +38,16 @@ data:
       enabled: true
       tokens:
        - trusted_cluster:Zs15b013ba25c99d3454336002cf9b20fb
-      cluster_name: teleport.teleport.svc.cluster.local
+      cluster_name: teleport.root-cluster.svc.cluster.local
       authentication:
         type: local
         second_factor: off     
     kubernetes_service:
       enabled: false
       listen_addr: 0.0.0.0:3027
-      kube_cluster_name: teleport.teleport.svc.cluster.local
+      kube_cluster_name: teleport.root-cluster.svc.cluster.local
     db_service:
-      enabled: "yes"
+      enabled: "no"
       databases:
       - name: "example"
         description: "Example MySQL"

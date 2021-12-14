@@ -124,6 +124,9 @@ spec:
   template:
     metadata:
       annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/path: "/metrics"
+        prometheus.io/port: "3000"
         # ConfigMap checksum, to recreate the pod on config changes.
         checksum/config: f7d53a2feeea8628d1e91df110345f11f699545bc1ade5da6d3352c81d797910
       labels:

@@ -1,0 +1,24 @@
+version: v4
+kind: role
+metadata:
+  name: only-own-sessions
+spec:
+  allow:
+    rules:
+    # Teleport allows shared session access by default, so for our restrictions
+    # to work we first allow access to ssh_sessions...
+    - resources: [ssh_session]
+      verbs: ['*']
+  deny:
+    rules:
+    # ... and then limit that access via a deny rule.
+    # Deny rules take precedence over allow rules, so the resulting role allows
+    # users to create SSH sessions but to only view their own sessions.
+    - resources: [ssh_session]
+      verbs: [list, read, update, delete]
+      where: '!contains(ssh_session.participants, user.metadata.name)'
+    # Users can only view session recordings for sessions in which they
+    # participated.
+    - resources: [session]
+      verbs: [list, read]
+      where: contains(session.participants, user.metadata.name)

@@ -1,0 +1,70 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: teleport
+  labels:
+    app: teleport
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: teleport
+  template:
+    metadata:
+      annotations:
+        # ConfigMap checksum, to recreate the pod on config changes.
+        checksum/config: f7d53a2feeea8628d1e91df110345f11f699545bc1ade5da6d3352c81d797910
+      labels:
+        app: teleport
+    spec:
+      containers:
+      - name: "teleport"
+        image: "quay.io/gravitational/teleport:8.0.7"
+        imagePullPolicy: IfNotPresent
+        args:
+        - "--diag-addr=0.0.0.0:3000"
+        - "--insecure"
+        ports:
+        - name: diag
+          containerPort: 3000
+          protocol: TCP
+        livenessProbe:
+          httpGet:
+            path: /healthz
+            port: diag
+          initialDelaySeconds: 5 # wait 5s for agent to start
+          periodSeconds: 5 # poll health every 5s
+          failureThreshold: 6 # consider agent unhealthy after 30s (6 * 5s)
+        readinessProbe:
+          httpGet:
+            path: /readyz
+            port: diag
+          initialDelaySeconds: 5 # wait 5s for agent to register
+          periodSeconds: 5 # poll health every 5s
+          failureThreshold: 12 # consider agent unhealthy after 60s (12 * 5s)
+        volumeMounts:
+        - name: etcd-certs
+          mountPath: /var/certs/etcd
+          readOnly: true
+        - mountPath: /etc/teleport
+          name: "config"
+          readOnly: true
+        - mountPath: /var/lib/teleport
+          name: "data"
+        - name: aws-config
+          mountPath: /root/.aws
+          readOnly: true      
+      volumes:
+      - name: etcd-certs
+        configMap:
+          name: etcd-certs
+      - name: "config"
+        configMap:
+          name: teleport
+      - name: "aws-config"
+        configMap:
+          name: aws-config
+      - name: "data"
+        persistentVolumeClaim:
+          claimName: teleport
+      serviceAccountName: teleport

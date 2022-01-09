@@ -1,0 +1,37 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: {{ .Values.sshNodeName }}
+spec:
+  selector:
+    matchLabels:
+      app: {{ .Values.sshNodeName }} 
+  serviceName: "{{ .Values.sshNodeName }}"
+  replicas: {{ .Values.replicaCount }}
+  template:
+    metadata:
+      labels:
+        app: {{ .Values.sshNodeName }} 
+    spec:
+      terminationGracePeriodSeconds: 10
+      containers:
+      - name: teleport-node
+        image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+        command:
+          - teleport
+          - start
+          - --roles=node
+          - --labels=env={{ .Values.labels.env }},team={{ .Values.labels.team }},account={{ .Values.labels.account }}
+          - --token={{ .Values.joinToken }} 
+          - --auth-server={{ .Values.authServer }}:3025
+        volumeMounts:
+        - name: teleport
+          mountPath: /var/lib/teleport
+  volumeClaimTemplates:
+  - metadata:
+      name: teleport
+    spec:
+      accessModes: [ "ReadWriteOnce" ]
+      resources:
+        requests:
+          storage: 1Gi

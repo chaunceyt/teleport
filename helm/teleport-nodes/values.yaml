@@ -1,0 +1,15 @@
+replicaCount: 2
+sshNodeName: ssh-node
+joinToken: xZ15b013ba25c99d3454336002cf9b20fb-join-token
+authServer: 10.244.3.5
+
+labels:
+  env: dev
+  role: ssh-node
+  account: abcd-dev
+  team: devops
+
+image:
+  repository: quay.io/gravitational/teleport
+  pullPolicy: IfNotPresent
+  tag: "7.3.3"

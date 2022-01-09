@@ -1,0 +1,23 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: teleport-client
+spec:
+  containers:
+  - name: teleport
+    image: quay.io/gravitational/teleport:8.0.7
+    command: [ "/bin/bash", "-c", "--" ]
+    args: [ "while true; do sleep 30; done;" ]
+    volumeMounts:
+    - name: lab-storage
+      mountPath: /data/teleport-lab
+    - name: aws-config
+      mountPath: /root/.aws
+    imagePullPolicy: IfNotPresent
+  restartPolicy: Always
+  volumes:
+  - name: lab-storage
+    emptyDir: {}
+  - name: aws-config
+    configMap:
+      name: aws-config

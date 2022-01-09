@@ -1,0 +1,12 @@
+apiVersion: v1
+data:
+  config: |
+    [default]
+    region = us-east-1
+  credentials: |
+    [default]
+    aws_access_key_id = teleport-lab-access-key
+    aws_secret_access_key = teleport-lab-secret-access-key
+kind: ConfigMap
+metadata:
+  name: aws-config

@@ -12,4 +12,4 @@ labels:
 image:
   repository: quay.io/gravitational/teleport
   pullPolicy: IfNotPresent
-  tag: "7.3.3"
+  tag: "8.0.7"

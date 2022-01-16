@@ -5,7 +5,7 @@ metadata:
   labels:
     app: teleport
 spec:
-  replicas: 2
+  replicas: 1
   selector:
     matchLabels:
       app: teleport
@@ -43,27 +43,15 @@ spec:
           periodSeconds: 5 # poll health every 5s
           failureThreshold: 12 # consider agent unhealthy after 60s (12 * 5s)
         volumeMounts:
-        - name: etcd-certs
-          mountPath: /var/certs/etcd
-          readOnly: true
         - mountPath: /etc/teleport
           name: "config"
           readOnly: true
         - mountPath: /var/lib/teleport
           name: "data"
-        - name: aws-config
-          mountPath: /root/.aws
-          readOnly: true      
       volumes:
-      - name: etcd-certs
-        configMap:
-          name: etcd-certs
       - name: "config"
         configMap:
           name: teleport
-      - name: "aws-config"
-        configMap:
-          name: aws-config
       - name: "data"
         persistentVolumeClaim:
           claimName: teleport

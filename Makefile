@@ -1,22 +1,21 @@
-lab:
-				@echo "Setting up teleport lab..."
-				@scripts/setup-environment.sh
+sandbox:
+	@scripts/setup-environment.sh
 
-delete-lab:
-				@kind delete cluster --name teleport-lab
+delete-sandbox:
+	@scripts/cleanup.sh
 
 port-forwards:
-				@echo "Setting up port-forwards..."
-				@scripts/port-forwards.sh
+	@echo "Setting up port-forwards..."
+	@scripts/port-forwards.sh
 
 teleport-admins:
-				@echo "Creating tadmin accounts..."
-				@scripts/create-admin-accounts.sh
+	@echo "Creating tadmin accounts..."
+	@scripts/create-admin-accounts.sh
 
 setup-trusted-cluster:
-			@echo "Applying trusted-cluster configuration..."
-			@scripts/setup-trusted-cluster.sh
+	@echo "Applying trusted-cluster configuration..."
+	@scripts/setup-trusted-cluster.sh
 
-generate-join-tokens:
-		@echo "Generating join tokens..."
-		@scripts/create-join-token.sh			
+create-nodes:
+	@echo "Generating creating nodes..."
+	@scripts/create-nodes.sh

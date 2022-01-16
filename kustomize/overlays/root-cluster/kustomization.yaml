@@ -10,3 +10,4 @@ resources:
 
 patchesStrategicMerge:
 - config.yaml
+- deployment.yaml

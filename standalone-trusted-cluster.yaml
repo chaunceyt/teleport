@@ -2,7 +2,7 @@ kind: trusted_cluster
 version: v2
 metadata:
   # the trusted cluster name MUST match the 'cluster_name' setting of the root cluster.
-  name: teleport.trusted-cluster-01.svc.cluster.local
+  name: teleport.standalone.svc.cluster.local
 spec:
   # this field allows to create tunnels that are disabled, but can be enabled later.
   # this is the only field that can be changed later.

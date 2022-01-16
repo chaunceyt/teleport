@@ -11,9 +11,10 @@ spec:
   template:
     metadata:
       labels:
-        app: {{ .Values.sshNodeName }} 
+        app: {{ .Values.sshNodeName }}
     spec:
       terminationGracePeriodSeconds: 10
+      serviceAccountName: teleport
       containers:
       - name: teleport-node
         image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
@@ -21,7 +22,7 @@ spec:
           - teleport
           - start
           - --roles=node
-          - --labels=env={{ .Values.labels.env }},team={{ .Values.labels.team }},account={{ .Values.labels.account }}
+          - --labels=env={{ .Values.labels.env }},team={{ .Values.labels.team }},account={{ .Values.labels.account }},role={{ .Values.labels.role }}
           - --token={{ .Values.joinToken }} 
           - --auth-server={{ .Values.authServer }}:3025
         volumeMounts:

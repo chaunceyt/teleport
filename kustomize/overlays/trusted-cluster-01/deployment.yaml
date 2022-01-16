@@ -1,0 +1,25 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: teleport
+  labels:
+    app: teleport
+spec:
+  replicas: 2
+  template:
+    spec:
+      containers:
+      - name: "teleport"
+        volumeMounts:
+        - name: etcd-certs
+          mountPath: /var/certs/etcd
+          readOnly: true
+        - name: aws-config
+          mountPath: /root/.aws
+      volumes:
+      - name: etcd-certs
+        configMap:
+          name: etcd-certs
+      - name: "aws-config"
+        configMap:
+          name: aws-config

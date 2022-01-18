@@ -40,13 +40,6 @@ data:
       enabled: false
       listen_addr: 0.0.0.0:3027
       kube_cluster_name: teleport.trusted-cluster-01.svc.cluster.local
-    db_service:
-      enabled: "no"
-      databases:
-      - name: "example"
-        description: "Example MySQL"
-        protocol: "mysql"
-        uri: "teleport-db-mysql.db.svc.cluster.local:3306"
     proxy_service:
       public_addr: 'teleport.trusted-cluster-01.svc.cluster.local:443'
       kube_listen_addr: 0.0.0.0:3026

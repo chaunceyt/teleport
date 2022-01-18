@@ -51,7 +51,11 @@ spec:
               --cert-file /var/certs/etcd/root-cluster-etcd.root-cluster.svc.cluster.local.pem \
               --key-file /var/certs/etcd/root-cluster-etcd.root-cluster.svc.cluster.local-key.pem \
               --trusted-ca-file /var/certs/etcd/root-cluster-etcd.root-cluster.svc.cluster.local.ca.pem \
-              --client-cert-auth
+              --client-cert-auth \
+              --auto-compaction-retention 1 \
+              --auto-compaction-mode periodic \
+              --metrics extensive \
+              --logger 'zap'
         ports:
         - containerPort: 2379
           name: client

@@ -3,7 +3,8 @@
 Being responsible for implementing Teleport as a solution to replace the usage of bastion hosts, when needing to connect to internal servers via openssh. I needed an environment to teach myself how to operate Teleport. As a result, I created a "Teleport Sandbox" using:
 
 - Kubernetes cluster using `kind`
-- Etcd used as the backend for Teleport.
+- Three Teleport clusters
+- Etcd used as the backend for two of the Teleport clusters.
 - Minio for S3 compatible storage
 - Vault used to store the static join token for nodes
 - Vault injector used to inject the vault secret into the pod
@@ -35,13 +36,35 @@ git clone https://github.com/chaunceyt/teleport.git telelport-sandbox
 cd telelport-sandbox
 make sandbox
 ```
+### Connect to teleport clusters
 
-### Trusted cluster setup
+Append the following to your /etc/hosts `127.0.0.1` entry.
+i.e. 
+
+```
+127.0.0.1       localhost teleport.teleport.svc.cluster.local teleport.trusted-cluster-01.svc.cluster.local teleport.root-cluster.svc.cluster.local teleport.standalone.svc.cluster.local
+```
+
+- Run `make port-forward`
+- open https://teleport.standalone.svc.cluster.local:40443
+- open https://teleport.root-cluster.svc.cluster.local:50443
+- open https://teleport.trusted-cluster-01.svc.cluster.local:60443
+
+### Create admin accounts
+
+- Run `make teleport-admins` and for each domain fix the port from `443` --> `XX443` and set a password for the `tadmin` account.
+- Login and nagivate around each environment. At the moment neither has nodes that allows one to connect and login. Also for each cluster there is only one cluster listed in the `CLUSTER:` dropdown. That specific cluster's name'.
+
+### Trusted cluster Setup
 > The design of trusted clusters allows Teleport users to connect to compute infrastructure located behind firewalls without any open TCP ports
 
 - [Docs](https://goteleport.com/docs/setup/admin/trustedclusters/)
 - [Joind tokens](https://goteleport.com/docs/setup/admin/trustedclusters/#join-tokens)
-- `make setup-trusted-cluster`
+
+The sandbox configures the `standalone` and `trusted-cluster-01` to trust the `root-cluster` Teleport cluster.
+
+- Review `teleport-trusted-cluster.yaml` and `standalone-trusted-cluster.yaml` then run `make setup-trusted-cluster`
+- Login and navigate around each environment. Under `CLUSTER:` for the root-cluster there should be two additional clusters. Each of the other clusters only list that specific cluster's name.
 
 ### Adding SSH nodes
 
@@ -49,19 +72,16 @@ make sandbox
 - [static tokens](https://goteleport.com/docs/setup/admin/adding-nodes/#insecure-static-tokens)
 - [EC2 method](https://goteleport.com/docs/setup/guides/joining-nodes-aws/)
 
-- Run `make create-nodes`
+The sandbox uses static tokens to add nodes to the teleport clusters. A number of nodes are created with various labels that will help us understand the use of labels for RBAC 
 
-### Connect to teleport clusters
-
-- Run `make port-forward`
-- open https://localhost:50443
-- open https://localhost:60443
+- Run `make create-nodes` to create some nodes in each teleport cluster created in the sandbox.
+- Login to each cluster and there should be a number of nodes listed under `Servers`
 
 
 ### Use the teleport-client pod to interact with environment
 
 ```
-kubectl exec -it teleport-client -- bash
+kubectl -n root-cluster exec -it teleport-client -- bash
 ```
 
 ### Review the UI for for each of the binaries: `tsh`, `tctl`, and `teleport`
@@ -81,14 +101,72 @@ tsh ls --cluster=[clusterName]
 
 # Connect to node on another cluster
 tsh ssh --cluster=[clusterName] root@ssh-node-0
-```
 
+# Repeat the above commands on the other clusters. Note if trusted clusters were setup, the root-cluster has a list of clusters and the other cluster don't at the moment.
+
+# Proxy addresses for each cluster
+
+- `root-cluster` = teleport.root-cluster.svc.cluster.local:443
+- `standalone` = teleport.standalone.svc.cluster.local:443
+- `trusted-cluster-01` = teleport.trusted-cluster-01.svc.cluster.local:443
+
+
+```
 ### Terraform provider setup in teleport client 
 ```
+kubectl -n root-cluster exec -it teleport-client -- bash
+apt update
+apt install -y curl vim unzip git dnsutils netcat 
 mkdir -p ${HOME?}/.terraform.d/plugins/gravitational.com/teleport/teleport/8.0.7/linux_amd64
 curl -L -O https://get.gravitational.com/terraform-provider-teleport-v8.0.7-linux-amd64-bin.tar.gz
 tar -zxvf terraform-provider-teleport-v8.0.7-linux-amd64-bin.tar.gz -C ${HOME?}/.terraform.d/plugins/gravitational.com/teleport/teleport/8.0.7/linux_amd64
+mkdir terraform-teleport && cd terraform-teleport
+curl -L -o main.tf https://raw.githubusercontent.com/gravitational/teleport/master/examples/resources/terraform/terraform-user-role.tf
+
+# Update the addr value.
+addr               = "teleport-management.root-cluster.svc.cluster.local:3025"
+
+# Create Identify file
+tsh login --proxy=teleport.root-cluster.svc.cluster.local:443 --user tadmin --insecure
+tctl auth sign --format=file --user=terraform --out=terraform-identity --ttl=10h --insecure
+
+terraform init
+terraform plan
+terraform apply
+
 ```
+
+### Add Database: standalone Mysql
+
+```
+# connect to standalone teleport cluster
+tsh login --proxy=teleport.standalone.svc.cluster.local:443 --user tadmin --insecure
+mkdir /tmp/server
+cd /tmp/server
+tctl --insecure auth sign --proxy=teleport.root-cluster.svc.cluster.local:443 --format=db --host=teleport-db-mysql.dev.svc.cluster.local --out=server --ttl=2190h
+cd /tmp
+tar -czf teleport-certs.tar.gz server/
+exit
+kubectl cp [podname]:/tmp/teleport-certs.tar.gz ./teleport-certs.tar.gz
+tar -xvzv teleport-certs.tar.gz 
+cd server
+kubectl create cm teleport-mysql-certs --from-file=server.cas --from-file=server.crt --from-file=server.key --dry-run=client -o yaml > ../mysql-teleport-certs.yaml
+cd ../
+kubectl create ns dev
+kubectl apply -n dev -f mysql-teleport-certs.yaml
+kubectl apply -n dev -f mysql-deployment.yaml
+
+# connect to database
+kubectl get po -n dev
+kubectl exec -it [podname] -n dev -- bash
+mysql mysql -uroot -prootpassword
+
+CREATE USER 'tadmin'@'%' REQUIRE SUBJECT '/CN=tadmin';
+GRANT ALL ON *.* TO 'tadmin'@'%';
+FLUSH PRIVILEGES;
+
+```
+
 
 # Notes
 
@@ -118,6 +196,8 @@ tar -zxvf terraform-provider-teleport-v8.0.7-linux-amd64-bin.tar.gz -C ${HOME?}/
 - [Teleport docs](https://goteleport.com/docs/setup/admin/trustedclusters/)
 
 ## ETCD backend review and management
+
+- [maintenance](https://etcd.io/docs/v3.2/op-guide/maintenance/)
 
 ```
 kubectl exec -it sts/etcd -n root-cluster -- bash

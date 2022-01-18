@@ -7,4 +7,5 @@ resources:
   - deployment.yaml
   - pvc.yaml
   - service.yaml
+  - management-service.yaml
   - serviceaccount.yaml
